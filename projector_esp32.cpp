@@ -27,6 +27,16 @@ void setup() {
     }
 }
 
+/**
+ * Continuously checks WiFi connection status and sends accelerometer data to a server.
+ * If connected to WiFi, reads accelerometer data, converts it to g-force,
+ * creates a JSON payload, and sends it to the specified server endpoint.
+ * Logs the sent data and server response code to the serial monitor.
+ * If disconnected from WiFi, logs a disconnection message.
+ * The process repeats every 2 seconds.
+ */
+
+
 void loop() {
     if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;

@@ -31,15 +31,38 @@ def fetch_from_s3():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})
 
+
+    """
+    Receive accelerometer data from ESP32
+    ------------------------------------
+
+    This endpoint receives the accelerometer data from the ESP32 and
+    uses it to adjust the projector's tilt based on the motion.
+
+    Parameters
+    ----------
+    data : dict
+        Accelerometer data with x, y, and z components
+
+    Returns
+    -------
+    response : dict
+        A JSON response with a "status" key indicating whether the
+        data was received successfully
+"""
 @app.route('/accelerometer', methods=['POST'])
 def receive_accelerometer():
-    """Receive accelerometer data from ESP32"""
+
     data = request.json
     print(f"Received Accelerometer Data: {data}")
 
-    # Example: Adjust projection based on motion
+    # Adjust projection based on motion
+    # Example: Tilt the projector up or down based on x-axis motion
     if abs(data['x']) > 1.5:  # Adjust threshold as needed
-        requests.post(PROJECTOR_API, json={"adjust": "tilt_up" if data['x'] > 0 else "tilt_down"})
+        requests.post(
+            PROJECTOR_API,
+            json={"adjust": "tilt_up" if data['x'] > 0 else "tilt_down"}
+        )
     
     return jsonify({"status": "received"})
 

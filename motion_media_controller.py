@@ -1,13 +1,10 @@
 #!/usr/bin/env python3
 """
-Motion-Based Media Controller for Raspberry Pi 5 with ESP32 Integration
+Motion-Based Media Controller for Raspberry Pi with ESP32 Integration
 
 This script monitors an ESP32 sensor for motion detection via serial connection,
 switches between displaying an image (when motion is detected) and playing a video (when no motion),
 and reports the video playback state to a remote API.
-
-Usage:
-    python3 motion_media_controller.py --video /path/to/video.mp4 --image /path/to/image.jpg
 
 Dependencies:
     - pyserial
@@ -16,7 +13,6 @@ Dependencies:
     - feh (image viewer)
 """
 
-import argparse
 import json
 import logging
 import os
@@ -29,7 +25,30 @@ from threading import Event, Lock, Thread
 import requests
 import serial
 
-# Configure logging
+# ============================================================================
+# CONFIGURATION
+# ============================================================================
+
+# Media paths - define your video and image paths here
+VIDEO_PATH = "I:\projector-startup\video.mp4"  # REPLACE with your video path
+IMAGE_PATH = "I:\projector-startup\image.jpg"  # REPLACE with your image path
+
+# ESP32 configuration
+ESP32_PORT = "/dev/ttyUSB0"
+ESP32_BAUDRATE = 115200
+
+# API configuration
+API_ENDPOINT = "https://backendlv8-production.up.railway.app/api/brightness/update"
+DEVICE_ID = "AUTO_DEVICE_001"
+API_UPDATE_INTERVAL = 10  # seconds
+
+# Motion detection parameters
+MOTION_TIMEOUT = 3  # seconds to wait before acting on motion
+
+# ============================================================================
+# LOGGING SETUP
+# ============================================================================
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -40,13 +59,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Global configuration
-API_ENDPOINT = "https://backendlv8-production.up.railway.app/api/brightness/update"
-DEVICE_ID = "AUTO_DEVICE_001"
-ESP32_PORT = "/dev/ttyUSB0"
-ESP32_BAUDRATE = 115200
-API_UPDATE_INTERVAL = 10  # seconds
-
+# ============================================================================
+# ESP32 SERIAL MONITOR
+# ============================================================================
 
 class ESP32Monitor:
     """Handles serial communication with ESP32 for motion detection."""
@@ -153,6 +168,9 @@ class ESP32Monitor:
             
             time.sleep(0.01)  # Small delay to prevent CPU hogging
 
+# ============================================================================
+# MEDIA CONTROLLER
+# ============================================================================
 
 class MediaController:
     """Controls video playback and image display."""
@@ -268,6 +286,9 @@ class MediaController:
         self.close_image()
         logger.info("Media controller cleaned up")
 
+# ============================================================================
+# API SERVICE
+# ============================================================================
 
 class APIService:
     """Handles API communication for brightness updates."""
@@ -335,25 +356,23 @@ class APIService:
                     break
                 time.sleep(0.1)
 
+# ============================================================================
+# MAIN CONTROLLER
+# ============================================================================
 
 class MotionMediaController:
     """Main controller class that integrates all components."""
     
-    def __init__(self, video_path, image_path, esp32_port=ESP32_PORT):
-        self.video_path = video_path
-        self.image_path = image_path
-        self.esp32_port = esp32_port
-        
+    def __init__(self):
         # Initialize components
-        self.esp32 = ESP32Monitor(port=self.esp32_port, baudrate=ESP32_BAUDRATE)
-        self.media = MediaController(self.video_path, self.image_path)
+        self.esp32 = ESP32Monitor(port=ESP32_PORT, baudrate=ESP32_BAUDRATE)
+        self.media = MediaController(VIDEO_PATH, IMAGE_PATH)
         self.api = APIService(API_ENDPOINT, DEVICE_ID)
         
         # State tracking
         self.running = False
         self.motion_detected = False
         self.motion_start_time = 0
-        self.motion_timeout = 3  # seconds to wait before acting on motion
     
     def motion_handler(self, motion_detected):
         """Handle motion state changes from ESP32."""
@@ -376,11 +395,11 @@ class MotionMediaController:
         start_time = self.motion_start_time
         
         # Wait for the timeout
-        time.sleep(self.motion_timeout)
+        time.sleep(MOTION_TIMEOUT)
         
         # Only proceed if motion is still detected and it's the same event
         if self.motion_detected and start_time == self.motion_start_time:
-            logger.info(f"Motion sustained for {self.motion_timeout}s - displaying image")
+            logger.info(f"Motion sustained for {MOTION_TIMEOUT}s - displaying image")
             self.media.display_image()
     
     def get_brightness_state(self):
@@ -437,6 +456,9 @@ class MotionMediaController:
         finally:
             self.stop()
 
+# ============================================================================
+# SIGNAL HANDLING AND MAIN FUNCTION
+# ============================================================================
 
 def signal_handler(sig, frame):
     """Handle system signals for clean shutdown."""
@@ -445,40 +467,20 @@ def signal_handler(sig, frame):
         controller.stop()
     sys.exit(0)
 
-
 def main():
     """Main entry point for the application."""
-    # Parse command line arguments
-    parser = argparse.ArgumentParser(description='Motion-based media controller')
-    parser.add_argument('--video', required=True, help='Path to video file')
-    parser.add_argument('--image', required=True, help='Path to image file')
-    parser.add_argument('--port', default=ESP32_PORT, help='ESP32 serial port')
-    parser.add_argument('--log-level', default='INFO', 
-                       choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
-                       help='Set the logging level')
-    
-    args = parser.parse_args()
-    
-    # Configure logging level
-    logging.getLogger().setLevel(getattr(logging, args.log_level))
-    
     # Register signal handlers for clean shutdown
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     
     # Create and start the controller
     global controller
-    controller = MotionMediaController(
-        video_path=args.video,
-        image_path=args.image,
-        esp32_port=args.port
-    )
+    controller = MotionMediaController()
     
     if controller.start():
         controller.run_forever()
     else:
         sys.exit(1)
-
 
 if __name__ == "__main__":
     main()

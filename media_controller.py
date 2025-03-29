@@ -1,4 +1,4 @@
-# media_controller.py
+# media_controller.py (updated for VLC)
 import subprocess
 import os
 import signal
@@ -20,7 +20,7 @@ class MediaController:
         self.is_image_displayed = False
         
     def play_video(self):
-        """Start video playback using omxplayer"""
+        """Start video playback using VLC"""
         with self.lock:
             # First ensure image is closed
             self.close_image()
@@ -31,14 +31,13 @@ class MediaController:
                 return
             
             try:
-                # Use omxplayer for hardware accelerated playback on Raspberry Pi
-                self.video_process = subprocess.Popen(
-                    ['omxplayer', '--loop', '--no-osd', self.video_path],
-                    stdin=subprocess.PIPE,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    preexec_fn=os.setsid
-                )
+                # Use VLC for hardware accelerated playback on Raspberry Pi 5
+                self.video_process = subprocess.Popen([
+                    'cvlc', '--loop', '--fullscreen', '--no-osd',
+                    '--no-video-title-show', self.video_path
+                ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, 
+                   preexec_fn=os.setsid)
+                
                 self.is_video_playing = True
                 logger.info(f"Started video playback: {self.video_path}")
             except Exception as e:

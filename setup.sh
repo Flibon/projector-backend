@@ -6,7 +6,7 @@ echo "Setting up Motion Media Controller..."
 # Install system dependencies
 echo "Installing system dependencies..."
 sudo apt-get update
-sudo apt-get install -y python3-pip omxplayer feh
+sudo apt-get install -y python3-pip vlc feh
 
 # Install Python dependencies
 echo "Installing Python dependencies..."
@@ -26,6 +26,8 @@ StandardOutput=inherit
 StandardError=inherit
 Restart=always
 User=$USER
+Environment="DISPLAY=:0"
+Environment="XAUTHORITY=/home/$USER/.Xauthority"
 
 [Install]
 WantedBy=multi-user.target
